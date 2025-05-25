@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mi Móvil</title>
+</head>
+<body>
+    <nav>
+        <a href="{% url 'home' %}">Inicio</a> |
+        {% if user.is_authenticated %}
+            Bienvenido, {{ user.username }} |
+            <a href="{% url 'logout' %}">Cerrar sesión</a>
+        {% else %}
+            <a href="{% url 'login' %}">Iniciar sesión</a> |
+            <a href="{% url 'registro' %}">Registrarse</a>
+        {% endif %}
+    </nav>
+    <hr>
+    {% block content %}
+    {% endblock %}
+</body>
+</html>
