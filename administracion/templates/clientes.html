@@ -1,10 +1,148 @@
 {% extends 'base_home.html' %}
+{% load static %}
 
-    {% block content %}
-    <h2 class="mb-4">Clientes</h2>
-
-    <!-- Aquí irá la tabla de clientes -->
-    <div class="card p-4">
-        <p>Contenido de la sección de clientes.</p>
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center p-3">
+        <h4><strong>Clientes</strong></h4>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#agregarClienteModal">
+            Agregar Cliente
+        </button>
     </div>
+
+    <!-- Buscador -->
+    <div class="px-3 mb-3">
+        <form method="get" class="d-flex" role="search">
+            <input 
+                class="form-control me-2" 
+                type="search" 
+                placeholder="Buscar clientes..." 
+                name="q" 
+                value="{{ query }}"
+                style="width: 300px;"
+            >
+            <button 
+                class="btn btn-primary d-flex align-items-center justify-content-center" 
+                type="submit" 
+                title="Buscar"
+            >
+                <i class="bi bi-search text-white"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- Tabla clientes -->
+    <div class="card shadow-sm p-3 mx-3">
+        <table class="table align-middle text-center">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Email</th>
+                    <th>Usuario</th>
+                    <th>Teléfono</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                <tr>
+                    <td>{{ cliente.first_name }}</td>
+                    <td>{{ cliente.last_name }}</td>
+                    <td>{{ cliente.email }}</td>
+                    <td>{{ cliente.username }}</td>
+                    <td>{{ cliente.telefono }}</td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-primary"
+                            title="Editar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editarClienteModal"
+                            onclick="cargarFormularioEdicionCliente({{ cliente.id }})">
+                            <i class="bi bi-pencil-fill text-white"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-danger"
+                            title="Eliminar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#eliminarClienteModal"
+                            onclick="prepararModalEliminarCliente({{ cliente.id }}, '{{ cliente.first_name }} {{ cliente.last_name }}')">
+                            <i class="bi bi-trash-fill text-white"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No hay clientes registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal Agregar Cliente -->
+    <div class="modal fade" id="agregarClienteModal" tabindex="-1" aria-labelledby="agregarClienteLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="agregarClienteLabel">Agregar Cliente</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ form.as_p }}
+                    </div>
+                    <div class="text-end p-3">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar cliente -->
+    <div class="modal fade" id="editarClienteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" id="editarClienteContent">
+                <!-- Aquí se inyecta el contenido del formulario con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para confirmar eliminación -->
+    <div class="modal fade" id="eliminarClienteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="formEliminarCliente" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmar Eliminación</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Estás seguro de que deseas eliminar al cliente <strong id="nombreClienteEliminar"></strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<script>
+    function cargarFormularioEdicionCliente(idCliente) {
+        fetch(`/clientes/editar/${idCliente}/`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('editarClienteContent').innerHTML = html;
+            });
+    }
+
+    function prepararModalEliminarCliente(idCliente, nombreCliente) {
+        document.getElementById('nombreClienteEliminar').textContent = nombreCliente;
+        const form = document.getElementById('formEliminarCliente');
+        form.action = `/clientes/eliminar/${idCliente}/`;
+    }
+</script>
 {% endblock %}

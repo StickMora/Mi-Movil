@@ -1,0 +1,59 @@
+<form method="POST" enctype="multipart/form-data" action="{% url 'editar_reparacion' form.instance.id %}">
+    {% csrf_token %}
+    <div class="modal-header">
+        <h5 class="modal-title">Editar Reparación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+    </div>
+    <div class="modal-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Cliente</label>
+                    {{ form.cliente }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Marca celular</label>
+                    {{ form.marca_celular }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Referencia celular</label>
+                    {{ form.referencia_celular }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Motivo de Ingreso</label>
+                    {{ form.motivo_ingreso }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Observaciones</label>
+                    {{ form.observaciones }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Estado reparación</label>
+                    {{ form.estado_reparacion }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Precio total</label>
+                    {{ form.precio_total }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Abono</label>
+                    {{ form.abono }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Tipo de Pago</label>
+                    {{ form.tipo_pago }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fecha ingreso</label>
+                    {{ form.fecha_ingreso }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fecha salida</label>
+                    {{ form.fecha_salida }}
+                </div>
+            </div>
+            <div class="text-end">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            </div>
+        </form>
+    </div>

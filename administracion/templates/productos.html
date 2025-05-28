@@ -10,6 +10,27 @@
         </button>
     </div>
 
+    <!-- Buscador -->
+    <div class="px-3 mb-3">
+        <form method="get" class="d-flex" role="search">
+            <input 
+                class="form-control me-2" 
+                type="search" 
+                placeholder="Buscar productos..." 
+                name="q" 
+                value="{{ query }}"
+                style="width: 300px;"
+            >
+            <button 
+                class="btn btn-primary d-flex align-items-center justify-content-center" 
+                type="submit" 
+                title="Buscar"
+            >
+                <i class="bi bi-search text-white"></i>
+            </button>
+        </form>
+    </div>
+
     <!-- Tabla productos -->
     <div class="card shadow-sm p-3 mx-3">
         <table class="table align-middle text-center"> <!-- Centramos vertical y horizontalmente -->

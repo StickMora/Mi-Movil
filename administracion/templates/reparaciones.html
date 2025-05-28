@@ -1,0 +1,198 @@
+{% extends 'base_home.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center p-3">
+        <h4><strong>Reparaciones</strong></h4>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#agregarReparacionModal">
+            Agregar Reparación
+        </button>
+    </div>
+
+    <!-- Buscador -->
+    <div class="px-3 mb-3">
+        <form method="get" class="d-flex" role="search">
+            <input
+                class="form-control me-2"
+                type="search"
+                placeholder="Buscar reparaciones..."
+                name="q"
+                value="{{ query }}"
+                style="width: 300px;"
+            >
+            <button
+                class="btn btn-primary d-flex align-items-center justify-content-center"
+                type="submit"
+                title="Buscar"
+            >
+                <i class="bi bi-search text-white"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- Tabla reparaciones -->
+    <div class="card shadow-sm p-3 mx-3">
+        <table class="table align-middle text-center">
+            <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Marca</th>
+                  <th>Referencia</th>
+                  <th>Motivo</th>
+                  <th>Estado</th>
+                  <th>Saldo</th>
+                  <th>Ingreso</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>              
+            <tbody>
+                {% for reparacion in reparaciones %}
+                <tr>
+                    <td>{{ reparacion.cliente.user.get_full_name }}</td>
+                    <td>{{ reparacion.marca_celular }}</td>
+                    <td>{{ reparacion.referencia_celular }}</td>
+                    <td>{{ reparacion.motivo_ingreso }}</td>
+                    <td>{{ reparacion.estado_reparacion }}</td>
+                    <td class="text-end">${{ reparacion.saldo_pendiente|floatformat:0|intcomma }}</td>
+                    <td>{{ reparacion.fecha_ingreso|date:"d/m/Y" }}</td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-primary"
+                            title="Editar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editarReparacionModal"
+                            onclick="cargarFormularioEdicion({{ reparacion.id }})">
+                            <i class="bi bi-pencil-fill text-white"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-danger"
+                            title="Eliminar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#eliminarReparacionModal"
+                            onclick="prepararModalEliminar({{ reparacion.id }}, '{{ reparacion.cliente.get_full_name }}')">
+                            <i class="bi bi-trash-fill text-white"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="text-center">No hay reparaciones registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal Agregar Reparación -->
+    <div class="modal fade" id="agregarReparacionModal" tabindex="-1" aria-labelledby="agregarReparacionLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agregarReparacionLabel">Agregar Reparación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cliente</label>
+                                {{ form.cliente }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Marca celular</label>
+                                {{ form.marca_celular }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Referencia celular</label>
+                                {{ form.referencia_celular }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Motivo de Ingreso</label>
+                                {{ form.motivo_ingreso }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Observaciones</label>
+                                {{ form.observaciones }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Estado reparación</label>
+                                {{ form.estado_reparacion }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Precio total</label>
+                                {{ form.precio_total }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Abono</label>
+                                {{ form.abono }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Tipo de Pago</label>
+                                {{ form.tipo_pago }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Fecha ingreso</label>
+                                {{ form.fecha_ingreso }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Fecha salida</label>
+                                {{ form.fecha_salida }}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Agregar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar reparación -->
+    <div class="modal fade" id="editarReparacionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" id="editarReparacionContent">
+                <!-- Aquí se inyecta el formulario con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para confirmar eliminación -->
+    <div class="modal fade" id="eliminarReparacionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="formEliminarReparacion" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmar Eliminación</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Estás seguro de que deseas eliminar la reparación<strong id="nombreReparacionEliminar"></strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+</div>
+
+<script>
+    function cargarFormularioEdicion(idReparacion) {
+        fetch(`/reparacion/editar/${idReparacion}/`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('editarReparacionContent').innerHTML = html;
+            });
+    }
+
+    function prepararModalEliminar(idReparacion, nombreCliente) {
+        document.getElementById('nombreReparacionEliminar').textContent = nombreCliente;
+        const form = document.getElementById('formEliminarReparacion');
+        form.action = `/reparacion/eliminar/${idReparacion}/`;
+    }
+</script>
+{% endblock %}

@@ -1,10 +1,175 @@
 {% extends 'base_home.html' %}
+{% load static %}
+{% load humanize %}
 
 {% block content %}
-    <h2 class="mb-4">Ventas</h2>
-
-    <!-- Aquí irá la tabla de ventas, buscador y botón de nueva venta -->
-    <div class="card p-4">
-        <p>Contenido de la sección de ventas.</p>
+    <div class="d-flex justify-content-between align-items-center p-3">
+        <h4><strong>Ventas</strong></h4>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#agregarVentaModal">
+            Nueva Venta
+        </button>
     </div>
+
+    <!-- Buscador -->
+    <div class="px-3 mb-3">
+        <form method="get" class="d-flex" role="search">
+            <input
+                class="form-control me-2"
+                type="search"
+                placeholder="Buscar ventas..."
+                name="q"
+                value="{{ query }}"
+                style="width: 300px;"
+            >
+            <button
+                class="btn btn-primary d-flex align-items-center justify-content-center"
+                type="submit"
+                title="Buscar"
+            >
+                <i class="bi bi-search text-white"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- Tabla de ventas -->
+    <div class="card shadow-sm p-3 mx-3">
+        <table class="table align-middle text-center">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td>{{ venta.cliente.get_full_name }}</td>
+                    <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">${{ venta.total|floatformat:0|intcomma }}</td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-primary"
+                            title="Editar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editarVentaModal"
+                            onclick="cargarFormularioEdicionVenta({{ venta.id }})">
+                            <i class="bi bi-pencil-fill text-white"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-danger"
+                            title="Eliminar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#eliminarVentaModal"
+                            onclick="prepararModalEliminarVenta({{ venta.id }}, '{{ venta.cliente.get_full_name }}')">
+                            <i class="bi bi-trash-fill text-white"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No hay ventas registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal Agregar Venta -->
+    <div class="modal fade" id="agregarVentaModal" tabindex="-1" aria-labelledby="agregarVentaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="agregarVentaLabel">Nueva Venta</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Cliente</label>
+                                {{ venta_form.cliente }}
+                            </div>
+                        </div>
+                        <hr>
+                        <h5>Productos</h5>
+                        {{ detalle_formset.management_form }}
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for form in detalle_formset %}
+                                <tr>
+                                    <td>{{ form.producto }}</td>
+                                    <td>{{ form.cantidad }}</td>
+                                    <td>
+                                        {% if form.instance.pk %}
+                                        <input type="checkbox" name="{{ form.prefix }}-DELETE">
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar venta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Venta -->
+    <div class="modal fade" id="editarVentaModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" id="editarVentaContent">
+                <!-- Aquí se inyecta el formulario con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Eliminar Venta -->
+    <div class="modal fade" id="eliminarVentaModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="formEliminarVenta" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmar Eliminación</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Estás seguro de que deseas eliminar la venta de <strong id="nombreVentaEliminar"></strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<script>
+    function cargarFormularioEdicionVenta(idVenta) {
+        fetch(`/ventas/editar/${idVenta}/`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('editarVentaContent').innerHTML = html;
+            });
+    }
+
+    function prepararModalEliminarVenta(idVenta, nombreCliente) {
+        document.getElementById('nombreVentaEliminar').textContent = nombreCliente;
+        const form = document.getElementById('formEliminarVenta');
+        form.action = `/ventas/eliminar/${idVenta}/`;
+    }
+</script>
 {% endblock %}
