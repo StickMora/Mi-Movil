@@ -1,0 +1,163 @@
+{% extends 'base_home.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center p-3">
+        <h4><strong>Productos</strong></h4>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#agregarProductoModal">
+            Agregar Producto
+        </button>
+    </div>
+
+    <!-- Tabla productos -->
+    <div class="card shadow-sm p-3 mx-3">
+        <table class="table align-middle text-center"> <!-- Centramos vertical y horizontalmente -->
+            <thead>
+                <tr>
+                    <th>Imagen</th>
+                    <th style="width: 120px;">Nombre</th>
+                    <th>Código</th>
+                    <th style="width: 50px;">Stock Total</th>
+                    <th style="width: 50px;">Stock Mínimo</th>
+                    <th style="width: 80px;">Precio Unitario</th>
+                    <th>Categoría</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr>
+                    <td>
+                        {% if producto.imagen %}
+                            <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}" style="width: 50px; height: auto; object-fit: cover;">
+                        {% else %}
+                            Sin imagen
+                        {% endif %}
+                    </td>
+                    <td>{{ producto.nombre }}</td>
+                    <td>{{ producto.codigo }}</td>
+                    <td>{{ producto.stock_total }}</td>
+                    <td>{{ producto.stock_min }}</td>
+                    <td class="text-end">${{ producto.precio_unitario|floatformat:0|intcomma }}</td>
+                    <td>{{ producto.categoria_producto }}</td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-primary"
+                            title="Editar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editarProductoModal"
+                            onclick="cargarFormularioEdicion({{ producto.id }})">
+                            <i class="bi bi-pencil-fill text-white"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-danger"
+                            title="Eliminar"
+                            data-bs-toggle="modal"
+                            data-bs-target="#eliminarProductoModal"
+                            onclick="prepararModalEliminar({{ producto.id }}, '{{ producto.nombre }}')">
+                            <i class="bi bi-trash-fill text-white"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal Agregar Producto -->
+    <div class="modal fade" id="agregarProductoModal" tabindex="-1" aria-labelledby="agregarProductoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agregarProductoLabel">Agregar Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Imagen del producto</label>
+                                {{ form.imagen }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nombre del producto</label>
+                                {{ form.nombre }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Código</label>
+                                {{ form.codigo }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Stock total</label>
+                                {{ form.stock_total }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Stock mínimo</label>
+                                {{ form.stock_min }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Precio unitario</label>
+                                {{ form.precio_unitario }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Categoría</label>
+                                {{ form.categoria_producto }}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Agregar</button>
+                        </div>
+                    </form>   
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar producto -->
+    <div class="modal fade" id="editarProductoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" id="editarProductoContent">
+                <!-- Aquí se inyecta el contenido del formulario con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para confirmar eliminación -->
+    <div class="modal fade" id="eliminarProductoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="formEliminarProducto" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmar Eliminación</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Estás seguro de que deseas eliminar el producto <strong id="nombreProductoEliminar"></strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<script>
+    function cargarFormularioEdicion(idProducto) {
+        fetch(`/producto/editar/${idProducto}/`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('editarProductoContent').innerHTML = html;
+            });
+    }
+
+    function prepararModalEliminar(idProducto, nombreProducto) {
+        document.getElementById('nombreProductoEliminar').textContent = nombreProducto;
+        const form = document.getElementById('formEliminarProducto');
+        form.action = `/producto/eliminar/${idProducto}/`;
+    }
+</script>
+{% endblock %}

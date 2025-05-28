@@ -9,7 +9,10 @@ class UserManager(BaseUserManager):
             raise ValueError('El email es obligatorio')
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save()
         return user
 
@@ -36,20 +39,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=150, unique=True, verbose_name="Nombre de usuario")
     first_name = models.CharField(max_length=150, blank=True, verbose_name="Nombres")
     last_name = models.CharField(max_length=150, blank=True, verbose_name="Apellidos")
-
+    telefono = models.IntegerField(verbose_name="Número de Teléfono")
     tipo_usuario = models.CharField(max_length=10, choices=TIPO_USUARIO_CHOICES, verbose_name="Tipo de usuario")
 
     is_staff = models.BooleanField(default=False, verbose_name="Es administrador")
     is_active = models.BooleanField(default=True, verbose_name="Está activo")
     date_joined = models.DateTimeField(default=timezone.now, verbose_name="Fecha de registro")
-
-    telefono = models.CharField(max_length=45, blank=True, null=True, verbose_name="Teléfono")
-    motivo_ingreso = models.CharField(max_length=45, blank=True, null=True, verbose_name="Motivo de ingreso")
-    estado_celular = models.ForeignKey('Estado', on_delete=models.PROTECT, null=True, blank=True, verbose_name="Estado del celular")
-    tipo_celular = models.CharField(max_length=45, blank=True, null=True, verbose_name="Tipo de celular")
-    datos_celular = models.CharField(max_length=45, blank=True, null=True, verbose_name="Datos del celular")
-    fecha_ingreso = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de ingreso")
-    fecha_salida = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de salida")
 
     objects = UserManager()
 
@@ -64,8 +59,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_short_name(self):
         return self.first_name or self.email
-    
+ 
 
+class Cliente(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, limit_choices_to={'tipo_usuario': 'cliente'}, verbose_name="Usuario")   
+
+    def __str__(self):
+        return self.user.get_full_name()
+
+    
 class Categoria(models.Model):
     nombre = models.CharField(max_length=45, verbose_name="Nombre")
 
@@ -74,25 +76,34 @@ class Categoria(models.Model):
 
 
 class Estado(models.Model):
-    descripcion = models.CharField(max_length=45, null=True, blank=True, verbose_name="Descripción")
+    nombre = models.CharField(max_length=45, null=True, blank=True, verbose_name="Descripción")
 
     def __str__(self):
-        return self.descripcion or ""
+        return self.nombre
+
+
+class TipoPago(models.Model):
+    nombre = models.CharField(max_length=50, unique=True, verbose_name="Tipo de pago")
+
+    def __str__(self):
+        return self.nombre
+
 
 
 class Ventas(models.Model):
     fecha_venta = models.DateField(null=True, blank=True, verbose_name="Fecha de venta")
-    cliente = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas", verbose_name="Cliente")
+    cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas", verbose_name="Cliente")
     estado_venta = models.CharField(max_length=45, verbose_name="Estado de la venta")
-    id_usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas_registradas", verbose_name="Usuario responsable")
+    vendedor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas_registradas", verbose_name="Empleado responsable")
 
     def __str__(self):
         return f"Venta {self.id} - {self.estado_venta}"
 
 
 class Productos(models.Model):
+    imagen = models.ImageField(upload_to='productos/', null=True, blank=True, verbose_name="Imagen del producto")
     nombre = models.CharField(max_length=45, verbose_name="Nombre")
-    descripcion = models.CharField(max_length=45, verbose_name="Descripción")
+    codigo = models.CharField(max_length=45, verbose_name="Código")
     stock_total = models.IntegerField(verbose_name="Stock total")
     stock_min = models.IntegerField(verbose_name="Stock mínimo")
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio unitario")
@@ -103,14 +114,35 @@ class Productos(models.Model):
 
 
 class DetalleVenta(models.Model):
-    id_ventas = models.ForeignKey(Ventas, on_delete=models.CASCADE, verbose_name="Venta")
-    id_producto = models.ForeignKey(Productos, on_delete=models.PROTECT, verbose_name="Producto")
+    venta = models.ForeignKey(Ventas, on_delete=models.CASCADE, verbose_name="Venta")
+    producto = models.ForeignKey(Productos, on_delete=models.PROTECT, verbose_name="Producto")
     cantidad = models.IntegerField(verbose_name="Cantidad")
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio unitario")
     precio_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Precio total")
     iva = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="IVA")
-    total_Apagar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Total a pagar")
+    total_a_pagar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Total a pagar")
+    tipo_pago = models.ForeignKey(TipoPago, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Tipo de pago")
     fecha_venta = models.DateTimeField(verbose_name="Fecha de venta")
 
     def __str__(self):
         return f"DetalleVenta {self.id} - {self.id_producto.nombre}"
+    
+    
+class Reparacion(models.Model):
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='reparaciones')
+    motivo_ingreso = models.CharField(max_length=100, blank=True, null=True, verbose_name="Motivo de ingreso")
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    estado_reparacion = models.ForeignKey(Estado, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Estado de la Reparación")
+    marca_celular = models.CharField(max_length=45, blank=True, null=True, verbose_name="Marca del celular")
+    referencia_celular = models.CharField(max_length=45, blank=True, null=True, verbose_name="Referencia del celular")
+    precio_total = models.IntegerField(blank=True, null=True, verbose_name="Precio total")
+    abono = models.IntegerField(blank=True, null=True, verbose_name="Abono")
+    tipo_pago = models.ForeignKey(TipoPago, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Tipo de pago")
+    fecha_ingreso = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de ingreso")
+    fecha_salida = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de salida")
+
+    def saldo_pendiente(self):
+        return (self.precio_total or 0) - (self.abono or 0)
+
+    def __str__(self):
+        return f"Reparación de {self.marca_celular} - {self.referencia_celular} ({self.cliente})"
