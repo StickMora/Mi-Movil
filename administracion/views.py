@@ -12,6 +12,11 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q
 from .forms import RegistroForm, ProductosForm, ClienteForm, ReparacionForm, VentaForm, DetalleVentaFormSet
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
+from email.mime.image import MIMEImage
+import os
 
 class HomeRedirectView(RedirectView):
     pattern_name = 'login'
@@ -140,6 +145,50 @@ class ReparacionUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'editar_reparacion.html'
     success_url = reverse_lazy('reparaciones')
 
+    def form_valid(self, form):
+        reparacion = form.save(commit=False)
+
+        # Obtener estado anterior para comparación
+        reparacion_anterior = Reparacion.objects.get(pk=reparacion.pk)
+        estado_anterior = reparacion_anterior.estado_reparacion.nombre if reparacion_anterior else None
+
+        response = super().form_valid(form)  # guarda el formulario
+
+        # Verificar si el estado cambió a "Reparado"
+        if reparacion.estado_reparacion.nombre == 'Reparado' and estado_anterior != 'Reparado':
+            self.enviar_correo_reparacion(reparacion)
+
+        return response
+
+    def enviar_correo_reparacion(self, reparacion):
+        cliente = reparacion.cliente
+        usuario = cliente.user
+        to_email = usuario.email
+
+        context = {
+            'cliente_nombre': usuario.get_full_name() or usuario.username,
+            'marca_celular': reparacion.marca_celular,
+            'referencia_celular': reparacion.referencia_celular,
+        }
+
+        subject = 'Reparación Finalizada - Mi Móvil'
+        from_email = settings.DEFAULT_FROM_EMAIL
+        html_content = render_to_string('email_equipo_reparado.html', context)
+
+        msg = EmailMultiAlternatives(subject, '', from_email, [to_email])
+        msg.attach_alternative(html_content, "text/html")
+
+        # Ruta al logo dentro del proyecto (ajusta según tu estructura)
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'logo-mimovil.png')
+
+        with open(logo_path, 'rb') as f:
+            logo = MIMEImage(f.read())
+            logo.add_header('Content-ID', '<logo_mimovil>')
+            logo.add_header('Content-Disposition', 'inline', filename='logo-mimovil.png')
+            msg.attach(logo)
+
+        msg.send()
+
 
 class ReparacionDeleteView(LoginRequiredMixin, DeleteView):
     model = Reparacion
@@ -154,14 +203,16 @@ class VentaListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         query = self.request.GET.get('q', '')
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().order_by('-fecha_venta') 
+
         if query:
             queryset = queryset.filter(
-                Q(cliente__first_name__icontains=query) |
-                Q(cliente__last_name__icontains=query) |
+                Q(cliente__user__first_name__icontains=query) |
+                Q(cliente__user__last_name__icontains=query) |
                 Q(vendedor__first_name__icontains=query) |
                 Q(vendedor__last_name__icontains=query)
-            )
+            ).order_by('-fecha_venta')  
+
         return queryset
 
 

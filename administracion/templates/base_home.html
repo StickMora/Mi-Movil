@@ -53,6 +53,41 @@
             background-color: inherit !important;
             color: inherit !important;
         }
+        .theme-dark .modal-content {
+            background-color: #121212; /* fondo oscuro */
+            color: #ddd; /* texto claro */
+            border-color: #333;
+        }
+        .theme-dark .modal-header,
+        .theme-dark .modal-body,
+        .theme-dark .modal-footer {
+            background-color: transparent; /* hereda el fondo oscuro */
+            color: #ddd; /* etiquetas y textos claros */
+        }
+
+        .theme-dark label.form-label {
+            color: #ddd !important; /* etiquetas claras */
+        }
+
+        /* Inputs deben ser blancos para que se vean */
+        .theme-dark .modal-content input,
+        .theme-dark .modal-content select,
+        .theme-dark .modal-content textarea {
+            background-color: #fff !important; /* fondo blanco para inputs */
+            color: #000 !important; /* texto negro */
+            border-color: #ccc !important;
+        }
+
+        /* Botones (opcional, para que contraste bien) */
+        .theme-dark .modal-content .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .theme-dark .modal-content .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+
     </style>
 </head>
 <body>
