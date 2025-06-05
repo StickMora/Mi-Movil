@@ -28,7 +28,7 @@
 ### 1. Clona el repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/mi-movil.git
+git clone https://github.com/StickMora/Mi-Movil.git
 cd mi-movil
 ```
 
