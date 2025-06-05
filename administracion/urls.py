@@ -4,7 +4,7 @@ from .views import (
     ProductoListCreateView, ProductoUpdateView, ProductoDeleteView,  
     ClienteListCreateView, ClienteUpdateView, ClienteDeleteView, 
     ReparacionListCreateView, ReparacionUpdateView, ReparacionDeleteView, 
-    VentaCreateView,
+    VentaListView, VentaCreateView, VentaUpdateView, VentaDeleteView
 )
 from django.contrib.auth import views as auth_views
 
@@ -26,5 +26,8 @@ urlpatterns = [
     path('reparacion/editar/<int:pk>/', ReparacionUpdateView.as_view(), name='editar_reparacion'),
     path('reparacion/eliminar/<int:pk>/', ReparacionDeleteView.as_view(), name='eliminar_reparacion'),
 
-    path('ventas/', VentaCreateView.as_view(), name='ventas'),
+    path('ventas/', VentaListView.as_view(), name='ventas'),
+    path('ventas/nueva/', VentaCreateView.as_view(), name='crear_venta'),
+    path('ventas/editar/<int:pk>/', VentaUpdateView.as_view(), name='editar_venta'),
+    path('ventas/eliminar/<int:pk>/', VentaDeleteView.as_view(), name='eliminar_venta'),
 ]

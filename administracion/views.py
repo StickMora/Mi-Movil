@@ -1,10 +1,15 @@
 from django.views.generic import View, ListView, CreateView, UpdateView, DeleteView, TemplateView, RedirectView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
 from django.urls import reverse_lazy
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
-from .models import Productos, User, Reparacion
+from django.template.loader import render_to_string
+from .models import Productos, User, Reparacion, Ventas, DetalleVenta
+from decimal import Decimal
+from django.contrib import messages
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Q
 from .forms import RegistroForm, ProductosForm, ClienteForm, ReparacionForm, VentaForm, DetalleVentaFormSet
 
@@ -141,39 +146,164 @@ class ReparacionDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('reparaciones')
 
 
-class VentaCreateView(View):
-    def get(self, request):
-        venta_form = VentaForm()
-        detalle_formset = DetalleVentaFormSet()
-        return render(request, 'ventas.html', {
-            'venta_form': venta_form,
-            'detalle_formset': detalle_formset
-        })
+class VentaListView(LoginRequiredMixin, ListView):
+    model = Ventas
+    template_name = 'ventas.html'
+    context_object_name = 'ventas'
+    paginate_by = 10
 
-    def post(self, request):
-        venta_form = VentaForm(request.POST)
-        detalle_formset = DetalleVentaFormSet(request.POST)
-        if venta_form.is_valid() and detalle_formset.is_valid():
-            with transaction.atomic():
-                venta = venta_form.save(commit=False)
-                venta.total = 0
-                venta.save()
-                total = 0
-                for form in detalle_formset:
-                    detalle = form.save(commit=False)
-                    detalle.venta = venta
-                    detalle.precio_unitario = detalle.producto.precio
-                    detalle.precio_total = detalle.precio_unitario * detalle.cantidad
-                    total += detalle.precio_total
-                    detalle.save()
+    def get_queryset(self):
+        query = self.request.GET.get('q', '')
+        queryset = super().get_queryset()
+        if query:
+            queryset = queryset.filter(
+                Q(cliente__first_name__icontains=query) |
+                Q(cliente__last_name__icontains=query) |
+                Q(vendedor__first_name__icontains=query) |
+                Q(vendedor__last_name__icontains=query)
+            )
+        return queryset
 
-                    # descontar stock
-                    detalle.producto.stock -= detalle.cantidad
-                    detalle.producto.save()
-                venta.total = total
-                venta.save()
-                return redirect('ventas')
-        return render(request, 'ventas.html', {
-            'venta_form': venta_form,
-            'detalle_formset': detalle_formset
-        })
+
+class VentaCreateView(LoginRequiredMixin, CreateView):
+    model = Ventas
+    form_class = VentaForm
+    template_name = 'ventas_form.html'
+
+    def get_context_data(self, **kwargs):
+        data = super().get_context_data(**kwargs)
+        productos = Productos.objects.all()
+        if self.request.POST:
+            data['detalle_formset'] = DetalleVentaFormSet(self.request.POST, form_kwargs={'productos': productos})
+        else:
+            data['detalle_formset'] = DetalleVentaFormSet(form_kwargs={'productos': productos})
+        return data
+
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        detalle_formset = context['detalle_formset']
+        if detalle_formset.is_valid():
+            self.object = form.save(commit=False)
+            self.object.total_venta = 0
+            self.object.save()
+            detalle_formset.instance = self.object
+            detalle_formset.save()
+
+            # Calcular total y actualizar stock
+            total_venta = 0
+            for detalle in self.object.detalleventa_set.all():
+                detalle.precio_unitario = detalle.producto.precio_unitario
+                detalle.total_a_pagar = detalle.cantidad * detalle.precio_unitario
+                detalle.save()
+
+                detalle.producto.stock_total -= detalle.cantidad
+                detalle.producto.save()
+
+                total_venta += detalle.total_a_pagar
+
+            self.object.total_venta = total_venta
+            self.object.save()
+
+            return redirect('ventas')
+        else:
+            return self.render_to_response(self.get_context_data(form=form))
+
+
+class VentaUpdateView(LoginRequiredMixin, UpdateView):
+    model = Ventas
+    form_class = VentaForm
+    template_name = 'venta_edit_form.html'
+    success_url = reverse_lazy('ventas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.method in ['POST', 'PUT']:
+            context['detalle_formset'] = DetalleVentaFormSet(self.request.POST, instance=self.object)
+        else:
+            context['detalle_formset'] = DetalleVentaFormSet(instance=self.object)
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        detalle_formset = context['detalle_formset']
+
+        if detalle_formset.is_valid():
+            venta = form.save(commit=False)
+            venta.total_venta = Decimal('0.00')
+
+            # Primero devolver el stock de los detalles actuales de la venta antes de modificarla
+            detalles_anteriores = DetalleVenta.objects.filter(venta=venta)
+            for detalle in detalles_anteriores:
+                producto = detalle.producto
+                producto.stock_total += detalle.cantidad
+                producto.save()
+
+            total_venta = Decimal('0.00')
+
+            # Validar stock para cada detalle nuevo/modificado
+            for detalle_form in detalle_formset:
+                detalle_instance = detalle_form.save(commit=False)
+                producto = detalle_instance.producto
+                cantidad = detalle_instance.cantidad
+
+                if producto.stock_total < cantidad:
+                    detalle_formset.add_error(None, f"Stock insuficiente para {producto.nombre}.")
+                    if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        html = render_to_string(self.template_name, context, request=self.request)
+                        return JsonResponse({'success': False, 'html': html})
+                    return self.render_to_response(context)
+
+                total_venta += producto.precio_unitario * cantidad
+
+            venta.total_venta = total_venta
+            venta.save()
+
+            # Guardar el formset vinculando a la venta
+            detalle_formset.instance = venta
+            detalle_formset.save()
+
+            # Actualizar stock descontando la cantidad vendida
+            for detalle in detalle_formset:
+                detalle_instance = detalle.save(commit=False)
+                producto = detalle_instance.producto
+                producto.stock_total -= detalle_instance.cantidad
+                producto.save()
+
+            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+
+            messages.success(self.request, "Venta actualizada correctamente.")
+            return super().form_valid(form)
+
+        # Si hay errores en el formset o form
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            html = render_to_string(self.template_name, context, request=self.request)
+            return JsonResponse({'success': False, 'html': html})
+
+        return self.render_to_response(context)
+
+    def form_invalid(self, form):
+        context = self.get_context_data(form=form)
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            html = render_to_string(self.template_name, context, request=self.request)
+            return JsonResponse({'success': False, 'html': html})
+        return super().form_invalid(form)
+
+
+class VentaDeleteView(LoginRequiredMixin, DeleteView):
+    model = Ventas
+    success_url = reverse_lazy('ventas')
+
+    def delete(self, request, *args, **kwargs):
+        venta = self.get_object()
+
+        # Restaurar stock al eliminar la venta
+        for detalle in venta.detalleventa_set.all():
+            producto = detalle.producto
+            producto.stock_total += detalle.cantidad
+            producto.save()
+
+        venta.delete()
+        messages.success(request, "Venta eliminada correctamente.")
+        return super().delete(request, *args, **kwargs)
