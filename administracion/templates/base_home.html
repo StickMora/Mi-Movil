@@ -4,34 +4,78 @@
 <head>
     <meta charset="UTF-8">
     <title>Mi Móvil</title>
-    <link rel="icon" type="image/png" href="{% static 'img/logo-mi.png' %}">
+    <link rel="icon" type="image/png" href="{% static 'img/logo-mi.png' %}" id="favicon">
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <style>
+        /* Temas */
+        .theme-dark {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        .theme-dark aside {
+            background-color: #000 !important;
+            border-right: 1px solid #444; /* Separador sutil */
+        }
+        .theme-dark header {
+            background-color: #000 !important;
+            border-bottom: 1px solid #444 !important; /* Separador sutil */
+        }
+
+        .theme-light {
+            background-color: #ffffff !important;
+            color: #000 !important;
+        }
+        .theme-light aside {
+            background-color: #ffffff !important;
+            border-right: 1px solid #ddd; /* Separador sutil */
+        }
+        .theme-light header {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #ddd !important; /* Separador sutil */
+        }
+
+        /* Ajustes de enlaces */
+        .nav-link {
+            color: inherit !important;
+            transition: color 0.3s;
+        }
+        .nav-link:hover {
+            color: #0d6efd !important; /* azul al pasar el mouse */
+        }
+        .fw-bold.text-info {
+            color: #0d6efd !important;
+        }
+
+        section.bg-light.text-dark {
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+    </style>
 </head>
-<body class="bg-dark text-white">
+<body>
     <div class="d-flex">
         <!-- Menú lateral -->
-        <aside class="bg-black p-3" style="width: 200px; min-height: 100vh;">
+        <aside class="p-3" style="width: 200px; min-height: 100vh;">
             <div class="text-center mb-4">
-                <img src="{% static 'img/logo-mimovil.png' %}" alt="Logo" style="width: 150px;">
+                <img id="logo" src="{% static 'img/logo-mimovil.png' %}" alt="Logo" style="width: 150px;">
             </div>
             <nav class="nav flex-column">
-                <a class="nav-link text-white {% if request.path == '/ventas/' %}fw-bold text-info{% endif %}" href="{% url 'ventas' %}">
+                <a class="nav-link {% if request.path == '/ventas/' %}fw-bold text-info{% endif %}" href="{% url 'ventas' %}">
                     <i class="bi bi-cart"></i> Ventas
                 </a>
-                <a class="nav-link text-white {% if request.path == '/reparaciones/' %}fw-bold text-info{% endif %}" href="{% url 'reparaciones' %}">
+                <a class="nav-link {% if request.path == '/reparaciones/' %}fw-bold text-info{% endif %}" href="{% url 'reparaciones' %}">
                     <i class="bi bi-tools"></i> Reparaciones
                 </a>
-                <a class="nav-link text-white {% if request.path == '/producto/' %}fw-bold text-info{% endif %}" href="{% url 'producto' %}">
+                <a class="nav-link {% if request.path == '/producto/' %}fw-bold text-info{% endif %}" href="{% url 'producto' %}">
                     <i class="bi bi-box"></i> Inventario
                 </a>
-                <a class="nav-link text-white {% if request.path == '/clientes/' %}fw-bold text-info{% endif %}" href="{% url 'clientes' %}">
+                <a class="nav-link {% if request.path == '/clientes/' %}fw-bold text-info{% endif %}" href="{% url 'clientes' %}">
                     <i class="bi bi-people"></i> Clientes
                 </a>
-                <a class="nav-link text-white" href="{% url 'logout' %}">
+                <a class="nav-link" href="{% url 'logout' %}">
                     <i class="bi bi-box-arrow-right"></i> Salir
                 </a>
             </nav>
@@ -40,22 +84,62 @@
         <!-- Contenido principal -->
         <main class="flex-grow-1">
             <!-- Encabezado superior -->
-            <header class="d-flex justify-content-between align-items-center bg-black px-4 py-3 border-bottom border-secondary">
+            <header class="d-flex justify-content-between align-items-center px-4 py-3">
                 <div></div>
                 <div class="d-flex align-items-center gap-3">
                     <i class="bi bi-bell-fill fs-5"></i>
                     <i class="bi bi-person-circle fs-5"></i>
                     <span>{{ request.user.username }}</span>
+                    <!-- Selector de tema -->
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="toggleTheme">
+                        <label class="form-check-label" for="toggleTheme" style="cursor:pointer;" id="themeLabel">Modo Claro</label>
+                    </div>
                 </div>
             </header>
 
             <!-- Sección dinámica -->
-            <section class="p-4 bg-light text-dark" style="min-height: 90vh;">
+            <section class="p-4" style="min-height: 90vh;">
                 {% block content %}
                 {% endblock %}
             </section>
         </main>
     </div>
-    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        const toggleTheme = document.getElementById('toggleTheme');
+        const body = document.body;
+        const themeLabel = document.getElementById('themeLabel');
+        const logo = document.getElementById('logo');
+        const favicon = document.getElementById('favicon');
+
+        // Verifica el tema en localStorage
+        let theme = localStorage.getItem('theme') || 'dark';
+        applyTheme(theme);
+
+        // Aplica el tema al cargar la página
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                body.classList.remove('theme-dark');
+                body.classList.add('theme-light');
+                toggleTheme.checked = true;
+                themeLabel.textContent = 'Modo Oscuro';
+                logo.src = "{% static 'img/logo-mimovil-blanco.png' %}"; // Logo para fondo claro
+                favicon.href = "{% static 'img/logo-mi.png' %}"; // favicon normal
+            } else {
+                body.classList.remove('theme-light');
+                body.classList.add('theme-dark');
+                toggleTheme.checked = false;
+                themeLabel.textContent = 'Modo Claro';
+                logo.src = "{% static 'img/logo-mimovil.png' %}"; // Logo normal
+                favicon.href = "{% static 'img/logo-mi.png' %}"; // favicon normal
+            }
+        }
+
+        toggleTheme.addEventListener('change', () => {
+            theme = toggleTheme.checked ? 'light' : 'dark';
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+        });
+    </script>
 </body>
 </html>

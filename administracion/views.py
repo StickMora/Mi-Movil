@@ -225,28 +225,31 @@ class VentaUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        context = self.get_context_data(form=form)
         detalle_formset = context['detalle_formset']
 
         if detalle_formset.is_valid():
             venta = form.save(commit=False)
-            venta.total_venta = Decimal('0.00')
 
-            # Primero devolver el stock de los detalles actuales de la venta antes de modificarla
-            detalles_anteriores = DetalleVenta.objects.filter(venta=venta)
-            for detalle in detalles_anteriores:
-                producto = detalle.producto
-                producto.stock_total += detalle.cantidad
-                producto.save()
+            # Reponer stock anterior
+            for detalle in venta.detalleventa_set.all():
+                detalle.producto.stock_total += detalle.cantidad
+                detalle.producto.save()
+
+            venta.total_venta = Decimal('0.00')
+            venta.save()
+
+            # Guardar detalles nuevos
+            detalle_formset.instance = venta
+            detalle_formset.save()
 
             total_venta = Decimal('0.00')
 
-            # Validar stock para cada detalle nuevo/modificado
-            for detalle_form in detalle_formset:
-                detalle_instance = detalle_form.save(commit=False)
-                producto = detalle_instance.producto
-                cantidad = detalle_instance.cantidad
+            for detalle in venta.detalleventa_set.all():
+                producto = detalle.producto
+                cantidad = detalle.cantidad
 
+                # Verificar stock suficiente
                 if producto.stock_total < cantidad:
                     detalle_formset.add_error(None, f"Stock insuficiente para {producto.nombre}.")
                     if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -254,21 +257,18 @@ class VentaUpdateView(LoginRequiredMixin, UpdateView):
                         return JsonResponse({'success': False, 'html': html})
                     return self.render_to_response(context)
 
-                total_venta += producto.precio_unitario * cantidad
+                detalle.precio_unitario = producto.precio_unitario
+                detalle.total_a_pagar = cantidad * producto.precio_unitario
+                detalle.save()
+
+                producto.stock_total -= cantidad
+                producto.save()
+
+                total_venta += detalle.total_a_pagar
 
             venta.total_venta = total_venta
             venta.save()
-
-            # Guardar el formset vinculando a la venta
-            detalle_formset.instance = venta
-            detalle_formset.save()
-
-            # Actualizar stock descontando la cantidad vendida
-            for detalle in detalle_formset:
-                detalle_instance = detalle.save(commit=False)
-                producto = detalle_instance.producto
-                producto.stock_total -= detalle_instance.cantidad
-                producto.save()
+            print(f"DEBUG: Venta actualizada con total {total_venta}")
 
             if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({'success': True})
@@ -276,7 +276,11 @@ class VentaUpdateView(LoginRequiredMixin, UpdateView):
             messages.success(self.request, "Venta actualizada correctamente.")
             return super().form_valid(form)
 
-        # Si hay errores en el formset o form
+        else:
+            print("ERROR: detalle_formset no es válido")
+            print(detalle_formset.errors)
+
+        # Formset inválido
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             html = render_to_string(self.template_name, context, request=self.request)
             return JsonResponse({'success': False, 'html': html})
@@ -284,6 +288,7 @@ class VentaUpdateView(LoginRequiredMixin, UpdateView):
         return self.render_to_response(context)
 
     def form_invalid(self, form):
+        print("ERROR: form_invalid llamado")
         context = self.get_context_data(form=form)
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             html = render_to_string(self.template_name, context, request=self.request)

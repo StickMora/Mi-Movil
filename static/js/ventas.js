@@ -1,55 +1,112 @@
 function cargarFormularioEdicionVenta(idVenta) {
+    // console.log(`DEBUG: Cargando formulario de edición para venta ID ${idVenta}`);
     fetch(`/ventas/editar/${idVenta}/`)
         .then(response => {
             if (!response.ok) throw new Error('Error al cargar el formulario de edición.');
             return response.text();
         })
         .then(html => {
+            // console.log("DEBUG: Formulario de edición cargado correctamente");
             document.getElementById('editarVentaContent').innerHTML = html;
+            inicializarModalVenta('#editarVentaModal');
         })
-        .catch(error => alert(error));
+        .catch(error => {
+            console.error("ERROR:", error);
+            alert(error);
+        });
 }
 
 function prepararModalEliminarVenta(idVenta, nombreCliente) {
+    // console.log(`DEBUG: Preparando modal para eliminar venta ID ${idVenta}, cliente: ${nombreCliente}`);
     document.getElementById('nombreVentaEliminar').textContent = nombreCliente;
     document.getElementById('formEliminarVenta').action = `/ventas/eliminar/${idVenta}/`;
 }
 
 // Cargar formulario de agregar venta en el modal
 document.querySelector('[data-bs-target="#agregarVentaModal"]').addEventListener('click', () => {
+    // console.log("DEBUG: Cargando formulario para nueva venta");
     fetch('/ventas/nueva/')
         .then(response => {
             if (!response.ok) throw new Error('Error al cargar el formulario de venta.');
             return response.text();
         })
         .then(html => {
+            // console.log("DEBUG: Formulario nueva venta cargado");
             document.getElementById('agregarVentaContent').innerHTML = html;
         })
-        .catch(error => alert(error));
+        .catch(error => {
+            console.error("ERROR:", error);
+            alert(error);
+        });
 });
 
-/////////////////////////////////////////////////////////////////////////////////////
-
 document.addEventListener('DOMContentLoaded', function () {
-    inicializarModalVenta('#agregarVentaModal');  // Modal para crear venta
-    inicializarModalVenta('#editarVentaModal');   // Modal para editar venta
+    // console.log("DEBUG: DOM cargado, inicializando modales");
+    inicializarModalVenta('#agregarVentaModal');
+    inicializarModalVenta('#editarVentaModal');
+
+    // Enviar el formulario de edición por AJAX 
+    document.body.addEventListener('submit', function (e) {
+        if (e.target && e.target.id === 'formEditarVenta') {
+            e.preventDefault();
+            const form = e.target;
+            const url = form.action;
+            const method = form.method.toUpperCase();
+            const formData = new FormData(form);
+
+            // console.log('DEBUG: Enviando formulario de edición...');
+            fetch(url, {
+                method: method,
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                // console.log('DEBUG: Respuesta recibida:', data);
+                if (data.success) {
+                    // console.log("DEBUG: Éxito al actualizar venta, ocultando modal y recargando página");
+                    const modalElement = document.querySelector('#editarVentaModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) modal.hide();
+                    location.reload();
+                } else if (data.html) {
+                    // console.log("DEBUG: Error en formulario, actualizando contenido modal");
+                    document.querySelector('#editarVentaModal .modal-content').innerHTML = data.html;
+                }
+            })
+            .catch(error => {
+                console.error("ERROR al enviar formulario:", error);
+                document.querySelector('#editarVentaModal .modal-content').innerHTML = `<p class="text-danger">Error: ${error}</p>`;
+            });
+        }
+    });
 });
 
 function inicializarModalVenta(modalSelector) {
     const modalVenta = document.querySelector(modalSelector);
-    if (!modalVenta) return;
+    if (!modalVenta) {
+        console.warn(`WARN: No se encontró modal con selector ${modalSelector}`);
+        return;
+    }
 
     modalVenta.addEventListener('shown.bs.modal', function () {
-        console.log('Modal abierto:', modalSelector);
+        // console.log(`DEBUG: Modal abierto: ${modalSelector}`);
 
         const container = modalVenta.querySelector('#productosContainer');
         if (!container) {
-            console.warn('No existe productosContainer dentro del modal');
+            console.warn('WARN: No existe productosContainer dentro del modal');
             return;
         }
 
         const totalForms = modalVenta.querySelector('[id$="TOTAL_FORMS"]');
         const btnAgregarProducto = modalVenta.querySelector('#btnAgregarProducto');
+
+        function formatearNumeroConComas(numero) {
+            const entero = Math.round(numero);
+            return entero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
 
         function actualizarTotales() {
             let totalVenta = 0;
@@ -68,16 +125,17 @@ function inicializarModalVenta(modalSelector) {
                 const cantidad = parseInt(inputCantidad.value) || 0;
                 const total = precioUnitario * cantidad;
 
-                inputPrecioUnitario.value = precioUnitario.toLocaleString('es-ES');
-                inputTotal.value = total.toLocaleString('es-ES');
+                inputPrecioUnitario.value = formatearNumeroConComas(precioUnitario);
+                inputTotal.value = formatearNumeroConComas(total);
 
                 totalVenta += isNaN(total) ? 0 : total;
             });
 
             const totalVentaSpan = modalVenta.querySelector('#totalVenta');
             if (totalVentaSpan) {
-                totalVentaSpan.textContent = totalVenta.toLocaleString('es-ES');
+                totalVentaSpan.textContent = formatearNumeroConComas(totalVenta);
             }
+            // console.log(`DEBUG: Total de venta actualizado: ${formatearNumeroConComas(totalVenta)}`);
         }
 
         function agregarEventosFila(row) {
@@ -102,6 +160,7 @@ function inicializarModalVenta(modalSelector) {
         function eliminarFila(event) {
             const fila = event.target.closest('tr');
             if (fila) {
+                // console.log("DEBUG: Eliminando fila de producto");
                 fila.remove();
                 actualizarTotales();
                 actualizarTotalForms();
@@ -111,41 +170,28 @@ function inicializarModalVenta(modalSelector) {
         function actualizarTotalForms() {
             const currentForms = container.querySelectorAll('tr').length;
             totalForms.value = currentForms;
+            // console.log(`DEBUG: TOTAL_FORMS actualizado a ${currentForms}`);
         }
 
-        // Asignar eventos a filas existentes
         container.querySelectorAll('tr').forEach(agregarEventosFila);
 
-        // Evitar duplicados en el botón
         if (btnAgregarProducto) {
+            // Clonar botón para evitar duplicados de eventos
             const newBtnAgregarProducto = btnAgregarProducto.cloneNode(true);
             btnAgregarProducto.parentNode.replaceChild(newBtnAgregarProducto, btnAgregarProducto);
 
             newBtnAgregarProducto.addEventListener('click', function () {
+                // console.log("DEBUG: Botón agregar producto pulsado");
                 const currentFormCount = parseInt(totalForms.value);
                 const lastRow = container.querySelector('tr:last-child');
                 const newRow = lastRow.cloneNode(true);
 
                 newRow.querySelectorAll('input, select').forEach(input => {
-                    if (!input.name) return;
-                    const regex = /-(\d+)-/;
-                    input.name = input.name.replace(regex, `-${currentFormCount}-`);
-                    if (input.id) input.id = input.id.replace(regex, `-${currentFormCount}-`);
+                    input.name = input.name.replace(/\d+/, currentFormCount);
+                    input.id = input.id.replace(/\d+/, currentFormCount);
 
-                    if (input.tagName === 'INPUT') {
-                        if (input.type === 'text' || input.type === 'number') {
-                            if (input.classList.contains('precio-unitario') || input.classList.contains('total-a-pagar')) {
-                                input.value = '0.00';
-                            } else {
-                                input.value = '';
-                            }
-                        }
-                        if (input.type === 'checkbox') {
-                            input.checked = false;
-                        }
-                    } else if (input.tagName === 'SELECT') {
-                        input.selectedIndex = 0;
-                    }
+                    if (input.type === 'text' || input.type === 'number') input.value = '';
+                    if (input.tagName === 'SELECT') input.selectedIndex = 0;
                 });
 
                 container.appendChild(newRow);
@@ -158,26 +204,3 @@ function inicializarModalVenta(modalSelector) {
         actualizarTotales();
     });
 }
-
-// Enviar el formulario por AJAX
-$(document).on('submit', '#formEditarVenta', function(e) {
-    e.preventDefault();
-    const form = $(this);
-    $.ajax({
-        type: form.attr('method'),
-        url: form.attr('action'),
-        data: form.serialize(),
-        success: function(response) {
-            if (response.success) {
-                $('#editarVentaModal').modal('hide');
-                location.reload();
-            } else if (response.html) {
-                $('#editarVentaModal .modal-content').html(response.html);
-            }
-        },
-        error: function(xhr) {
-            $('#editarVentaModal .modal-content').html(xhr.responseText);
-        }
-    });
-});
-

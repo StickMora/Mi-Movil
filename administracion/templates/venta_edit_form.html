@@ -42,6 +42,9 @@
                 {% for form in detalle_formset %}
                 <tr>
                     <td>
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
                         {% render_field form.producto class="form-select producto-select" %}
                     </td>
                     <td>
@@ -60,16 +63,9 @@
                                value="{{ form.instance.subtotal|default_if_none:'0'|floatformat:0|intcomma }}">
                     </td>
                     <td>
-                        {% if form.instance.pk %}
                         <button type="button" class="btn btn-danger btn-sm eliminar-fila" title="Eliminar producto">
                             <i class="bi bi-trash"></i>
                         </button>
-                        {% else %}
-                        <!-- Para formularios nuevos, igual botón para eliminar -->
-                        <button type="button" class="btn btn-danger btn-sm eliminar-fila" title="Eliminar producto">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
