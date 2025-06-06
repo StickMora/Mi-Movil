@@ -1,0 +1,37 @@
+[
+{
+    "model": "administracion.estado",
+    "pk": 1,
+    "fields": {
+        "nombre": "Recibido"
+    }
+},
+{
+    "model": "administracion.estado",
+    "pk": 2,
+    "fields": {
+        "nombre": "En diagnóstico"
+    }
+},
+{
+    "model": "administracion.estado",
+    "pk": 3,
+    "fields": {
+        "nombre": "En Reparación"
+    }
+},
+{
+    "model": "administracion.estado",
+    "pk": 4,
+    "fields": {
+        "nombre": "Reparado"
+    }
+},
+{
+    "model": "administracion.estado",
+    "pk": 5,
+    "fields": {
+        "nombre": "Entregado"
+    }
+}
+]

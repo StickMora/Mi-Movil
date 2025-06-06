@@ -1,0 +1,23 @@
+[
+{
+    "model": "administracion.tipopago",
+    "pk": 1,
+    "fields": {
+        "nombre": "Efectivo"
+    }
+},
+{
+    "model": "administracion.tipopago",
+    "pk": 2,
+    "fields": {
+        "nombre": "Transferencia"
+    }
+},
+{
+    "model": "administracion.tipopago",
+    "pk": 3,
+    "fields": {
+        "nombre": "QR"
+    }
+}
+]

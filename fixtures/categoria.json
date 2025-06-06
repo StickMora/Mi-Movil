@@ -1,0 +1,44 @@
+[
+{
+    "model": "administracion.categoria",
+    "pk": 1,
+    "fields": {
+        "nombre": "Cargadores"
+    }
+},
+{
+    "model": "administracion.categoria",
+    "pk": 2,
+    "fields": {
+        "nombre": "Cables"
+    }
+},
+{
+    "model": "administracion.categoria",
+    "pk": 3,
+    "fields": {
+        "nombre": "Estuches"
+    }
+},
+{
+    "model": "administracion.categoria",
+    "pk": 4,
+    "fields": {
+        "nombre": "Memorias"
+    }
+},
+{
+    "model": "administracion.categoria",
+    "pk": 5,
+    "fields": {
+        "nombre": "Parlantes"
+    }
+},
+{
+    "model": "administracion.categoria",
+    "pk": 6,
+    "fields": {
+        "nombre": "Audífonos"
+    }
+}
+]
